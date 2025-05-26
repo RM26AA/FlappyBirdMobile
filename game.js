@@ -3,14 +3,21 @@ const container = document.getElementById("gameContainer");
 const scoreDisplay = document.getElementById("score");
 
 let birdTop = container.clientHeight / 2;
-const gravity = 2;
 let isGameOver = false;
 let score = 0;
 let pipes = [];
 
+// Responsive speed scaling
+const baseWidth = 800; // baseline for PC
+const deviceSpeedFactor = Math.max(0.7, Math.min(window.innerWidth / baseWidth, 1.5)); // Clamp factor
+const pipeSpeed = 2 * deviceSpeedFactor;
+const gravitySpeed = 2 * deviceSpeedFactor;
+const flapStrength = 50 * deviceSpeedFactor;
+const pipeGap = 150 * deviceSpeedFactor;
+
 function flap() {
   if (isGameOver) return;
-  birdTop -= 50;
+  birdTop -= flapStrength;
   if (birdTop < 0) birdTop = 0;
   bird.style.top = birdTop + "px";
 }
@@ -18,28 +25,22 @@ function flap() {
 function createPipe() {
   if (isGameOver) return;
 
-  const gap = 150;
   const pipeWidth = 60;
   const minHeight = 50;
-  const maxHeight = container.clientHeight - gap - minHeight;
+  const maxHeight = container.clientHeight - pipeGap - minHeight;
 
-  // Generate random height for top pipe
   const topHeight = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
-  const bottomHeight = container.clientHeight - topHeight - gap;
+  const bottomHeight = container.clientHeight - topHeight - pipeGap;
 
-  console.log("Creating pipes:", topHeight, bottomHeight);
-
-  // Create top pipe
   const topPipe = document.createElement("div");
   topPipe.classList.add("pipe", "top");
   topPipe.style.height = topHeight + "px";
-  topPipe.style.left = container.clientWidth + "px"; // Start off right edge
+  topPipe.style.left = container.clientWidth + "px";
 
-  // Create bottom pipe
   const bottomPipe = document.createElement("div");
   bottomPipe.classList.add("pipe", "bottom");
   bottomPipe.style.height = bottomHeight + "px";
-  bottomPipe.style.left = container.clientWidth + "px"; // Start off right edge
+  bottomPipe.style.left = container.clientWidth + "px";
 
   container.appendChild(topPipe);
   container.appendChild(bottomPipe);
@@ -49,45 +50,36 @@ function createPipe() {
 
 function movePipes() {
   pipes.forEach((pipe, index) => {
-    // Current left position in pixels
     let left = parseInt(pipe.topPipe.style.left);
-
-    // Move pipes left by 2 pixels
-    left -= 2;
-
+    left -= pipeSpeed;
     pipe.topPipe.style.left = left + "px";
     pipe.bottomPipe.style.left = left + "px";
 
-    // Remove pipes if off screen
     if (left + 60 < 0) {
       container.removeChild(pipe.topPipe);
       container.removeChild(pipe.bottomPipe);
       pipes.splice(index, 1);
     }
 
-    // Check if bird passed pipe for scoring
     if (!pipe.passed && left + 60 < 50) {
       score++;
       scoreDisplay.textContent = score;
       pipe.passed = true;
     }
 
-    // Collision detection
     const birdRect = bird.getBoundingClientRect();
     const topRect = pipe.topPipe.getBoundingClientRect();
     const bottomRect = pipe.bottomPipe.getBoundingClientRect();
 
-    const hitTopPipe =
-      birdRect.left < topRect.right &&
-      birdRect.right > topRect.left &&
-      birdRect.top < topRect.bottom;
+    const hitTop = birdRect.left < topRect.right &&
+                   birdRect.right > topRect.left &&
+                   birdRect.top < topRect.bottom;
 
-    const hitBottomPipe =
-      birdRect.left < bottomRect.right &&
-      birdRect.right > bottomRect.left &&
-      birdRect.bottom > bottomRect.top;
+    const hitBottom = birdRect.left < bottomRect.right &&
+                      birdRect.right > bottomRect.left &&
+                      birdRect.bottom > bottomRect.top;
 
-    if (hitTopPipe || hitBottomPipe) {
+    if (hitTop || hitBottom) {
       endGame();
     }
   });
@@ -102,32 +94,32 @@ function endGame() {
 function gameLoop() {
   if (isGameOver) return;
 
-  birdTop += gravity;
+  birdTop += gravitySpeed;
 
-  // Check if bird hits ground or flies above screen
   if (birdTop + bird.clientHeight > container.clientHeight || birdTop < 0) {
     endGame();
     return;
   }
 
   bird.style.top = birdTop + "px";
-
   movePipes();
-
   requestAnimationFrame(gameLoop);
 }
 
-// Tap/click to flap
+// Controls
 window.addEventListener("click", flap);
 window.addEventListener("touchstart", flap);
 
-// Start pipe creation after 1 second delay
+// Start pipes with dynamic interval
+const pipeInterval = 2500 / deviceSpeedFactor;
+
 setTimeout(() => {
   createPipe();
-  setInterval(createPipe, 2500);
+  setInterval(createPipe, pipeInterval);
 }, 1000);
 
-// Start the game loop immediately
+// Start game loop
 requestAnimationFrame(gameLoop);
+
 
 
